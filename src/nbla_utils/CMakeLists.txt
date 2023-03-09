@@ -29,6 +29,7 @@ endif()
 include_directories(${CMAKE_BINARY_DIR}/libraries/include)
 
 list(APPEND nbla_utils_SOURCES
+  nnb.cpp
   nnp.cpp
   nnabla.pb.cc
   nnp_impl.cpp
