@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <nbla/logger.hpp>
+#include <nbla_utils/nnb.hpp>
 #include <nbla_utils/nnp.hpp>
 
 #include <string>
@@ -288,6 +289,21 @@ vector<pair<string, VariablePtr>> Nnp::get_parameters() {
 
 bool Nnp::save_parameters(const string &filename) {
   return impl_->save_parameters(filename);
+}
+
+bool Nnp::export_network(const string &filename) {
+  int ep = filename.find_last_of(".");
+  string extname = filename.substr(ep, filename.size() - ep);
+
+  bool success = false;
+  if (extname == ".nnb") {
+    nbla::utils::nnb::NnbExporter exporter(impl_->ctx_, *this);
+    exporter.execute(filename);
+    success = true;
+  } else {
+    std::cerr << "Error: '" << extname << "' is not a supported format." << std::endl;
+  }
+  return success;
 }
 
 vector<string> Nnp::get_optimizer_names() {

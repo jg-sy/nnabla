@@ -602,6 +602,8 @@ public:
   @param[in] name output binary filename (.protobuf or .h5)
   */
   NBLA_API bool save_parameters(const string &filename);
+
+  NBLA_API bool export_network(const string &filename);
 };
 }
 /*@}*/
