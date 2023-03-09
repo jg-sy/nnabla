@@ -89,6 +89,12 @@ private:
   // Create CgFunction from Function message
   shared_ptr<nbla::CgFunction> create_cgfunction(const ::Function &func);
 
+  // Create Network::Function from Function message
+  Network::Function get_function(const ::Function &func);
+
+  // Create Network::FunctionArg vector from Function message
+  vector<Network::FunctionArg> get_function_args(const ::Function &func);
+
   // ctor
   NetworkImpl(const nbla::Context &ctx, const ::Network &network,
               const unordered_map<string, CgVariablePtr> &parameters);
@@ -99,6 +105,8 @@ public:
   int batch_size() const;
   void replace_variable(const string &name, CgVariablePtr variable);
   CgVariablePtr get_variable(const string &name);
+  vector<Network::Variable> get_variables();
+  vector<Network::Function> get_functions();
 };
 
 // ----------------------------------------------------------------------
@@ -132,6 +140,8 @@ public:
   int batch_size() const;
   vector<Executor::DataVariable> get_data_variables();
   vector<Executor::OutputVariable> get_output_variables();
+  vector<Executor::GeneratorVariable> get_generator_variables();
+  vector<Executor::ParameterVariable> get_parameter_variables();
   shared_ptr<Network> get_network();
   void execute();
 };

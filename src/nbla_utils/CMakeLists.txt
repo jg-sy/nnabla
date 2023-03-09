@@ -34,6 +34,7 @@ list(APPEND nbla_utils_SOURCES
   nnp_impl.cpp
   nnp_impl_create_function.cpp
   nnp_impl_create_solver.cpp
+  nnp_impl_get_function_args.cpp
   nnp_impl_optimizer.cpp
   nnp_impl_monitor.cpp
   nnp_impl_configs.cpp

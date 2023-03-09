@@ -19,6 +19,8 @@
 #include <nbla/defs.hpp>
 #include <string>
 
+class Shape;
+
 namespace nbla {
 /** Utils. NNabla utilities.
 */
@@ -99,6 +101,61 @@ class Network {
   Network(NetworkImpl *impl);
 
 public:
+  struct FunctionArg {
+
+    template <template <typename> class T_CONTAINER, typename T>
+    struct _InitHelper;
+
+    typedef tuple<string, int> Choice;
+
+    template <template <typename> class T_CONTAINER, typename T>
+    FunctionArg(const T_CONTAINER<T> &value);
+    FunctionArg(const bool value);
+    FunctionArg(const double value);
+    FunctionArg(const float value);
+    FunctionArg(const int64_t value);
+    FunctionArg(const ::Shape &value);
+    FunctionArg(const string &value, const vector<string> &available_values);
+    FunctionArg(const FunctionArg &rhs);
+    ~FunctionArg();
+
+    enum {
+      BOOL,
+      DOUBLE,
+      FLOAT,
+      INT64,
+      ARRAY_INT64,
+      ARRAY_FLOAT,
+      SHAPE,
+      STRING
+    } type_;
+
+    union {
+      bool bool_;
+      double double_;
+      float float_;
+      int64_t int64_t_;
+      vector<int64_t> aint64_t_;
+      vector<float> afloat_;
+      Choice choice_;
+    };
+  };
+
+  struct Function {
+    const string name;
+    const string type;
+    const vector<string> inputs;
+    const vector<string> outputs;
+    const vector<FunctionArg> arguments;
+  };
+
+  struct Variable {
+    const string name;
+    const string type;
+    const Shape_t shape;
+    const CgVariablePtr variable;
+  };
+
   /** Network name.
    */
   NBLA_API string name() const;
@@ -137,7 +194,32 @@ public:
       @retval Variable in a computation graph.
    */
   NBLA_API CgVariablePtr get_variable(const string &name);
+
+  NBLA_API vector<Variable> get_variables();
+
+  NBLA_API vector<Function> get_functions();
 };
+
+template <template <typename> class T_CONTAINER>
+struct Network::FunctionArg::_InitHelper<T_CONTAINER, int64_t> {
+  static void Init(const T_CONTAINER<int64_t> &v, Network::FunctionArg *farg) {
+    farg->type_ = Network::FunctionArg::INT64;
+    new (&farg->aint64_t_) vector<int64_t>(v.begin(), v.end());
+  }
+};
+
+template <template <typename> class T_CONTAINER>
+struct Network::FunctionArg::_InitHelper<T_CONTAINER, float> {
+  static void Init(const T_CONTAINER<float> &v, Network::FunctionArg *farg) {
+    farg->type_ = Network::FunctionArg::FLOAT;
+    new (&farg->afloat_) vector<float>(v.begin(), v.end());
+  }
+};
+
+template <template <typename> class T_CONTAINER, typename T>
+inline Network::FunctionArg::FunctionArg(const T_CONTAINER<T> &value) {
+  _InitHelper<T_CONTAINER, T>::Init(value, this);
+}
 
 // ----------------------------------------------------------------------
 // Executor
@@ -171,6 +253,27 @@ public:
     const string variable_name;
     const string type;
     const string data_name;
+    const CgVariablePtr variable;
+  };
+
+  /** Generator variable container.
+
+  The string fields corresponds to GeneratorVariable in proto definition.
+  */
+  struct GeneratorVariable {
+    const string variable_name;
+    const string type;
+    const float multiplier;
+    const CgVariablePtr variable;
+  };
+
+  /** Parameter variable container.
+
+  The string fields corresponds to ParameterVariable in proto definition.
+  */
+  struct ParameterVariable {
+    const string variable_name;
+    const float learning_rate_multiplier;
     const CgVariablePtr variable;
   };
 
@@ -210,6 +313,10 @@ public:
               gotten via Nnabla C++ interface.
    */
   NBLA_API vector<OutputVariable> get_output_variables();
+
+  NBLA_API vector<GeneratorVariable> get_generator_variables();
+
+  NBLA_API vector<ParameterVariable> get_parameter_variables();
 
   /** Get the reference (shared_ptr) of Network object held in this.
    */

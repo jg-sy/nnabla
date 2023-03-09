@@ -44,6 +44,14 @@ CgVariablePtr Network::get_variable(const string &name) {
   return impl_->get_variable(name);
 }
 
+vector<Network::Variable> Network::get_variables() {
+  return impl_->get_variables();
+}
+
+vector<Network::Function> Network::get_functions() {
+  return impl_->get_functions();
+}
+
 string Network::name() const { return impl_->name(); }
 
 void Network::set_batch_size(int batch_size) {
@@ -51,6 +59,90 @@ void Network::set_batch_size(int batch_size) {
 }
 
 int Network::batch_size() const { return impl_->batch_size(); }
+
+// ----------------------------------------------------------------------
+// Network::FunctionArg
+// ----------------------------------------------------------------------
+
+inline int get_index_of(const string &value,
+                        const vector<string> &available_values) {
+  auto it = std::find(available_values.begin(), available_values.end(), value);
+  const int index = (it == available_values.end())
+                        ? -1
+                        : (int)(it - available_values.begin());
+  return index;
+}
+
+Network::FunctionArg::FunctionArg(const bool value) : type_(BOOL) {
+  bool_ = value;
+}
+Network::FunctionArg::FunctionArg(const double value) : type_(DOUBLE) {
+  double_ = value;
+}
+Network::FunctionArg::FunctionArg(const float value) : type_(FLOAT) {
+  float_ = value;
+}
+Network::FunctionArg::FunctionArg(const int64_t value) : type_(INT64) {
+  int64_t_ = value;
+}
+Network::FunctionArg::FunctionArg(const ::Shape &value) : type_(SHAPE) {
+  new (&aint64_t_) vector<int64_t>(value.dim().begin(), value.dim().end());
+}
+Network::FunctionArg::FunctionArg(const string &value,
+                                  const vector<string> &available_values)
+    : type_(STRING) {
+  new (&choice_) Choice(value, get_index_of(value, available_values));
+}
+Network::FunctionArg::FunctionArg(const FunctionArg &rhs) : type_(rhs.type_) {
+  switch (type_) {
+  case nbla::utils::nnp::Network::FunctionArg::BOOL:
+    bool_ = rhs.bool_;
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::DOUBLE:
+    double_ = rhs.double_;
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::FLOAT:
+    float_ = rhs.float_;
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::INT64:
+    int64_t_ = rhs.int64_t_;
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::SHAPE:
+    new (&aint64_t_) vector<int64_t>(rhs.aint64_t_);
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::ARRAY_INT64:
+    new (&aint64_t_) vector<int64_t>(rhs.aint64_t_);
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::ARRAY_FLOAT:
+    new (&afloat_) vector<float>(rhs.afloat_);
+    break;
+  case nbla::utils::nnp::Network::FunctionArg::STRING:
+    new (&choice_) Choice(rhs.choice_);
+    break;
+  default:
+    break;
+  }
+}
+
+Network::FunctionArg::~FunctionArg() {
+
+  switch (type_) {
+  case SHAPE:
+    aint64_t_.~vector();
+    break;
+  case ARRAY_INT64:
+    aint64_t_.~vector();
+    break;
+  case ARRAY_FLOAT:
+    afloat_.~vector();
+    break;
+  case STRING:
+    choice_.~tuple();
+    break;
+  default:
+    break;
+  }
+}
 
 // ----------------------------------------------------------------------
 // Executor
@@ -68,6 +160,12 @@ vector<Executor::DataVariable> Executor::get_data_variables() {
 }
 vector<Executor::OutputVariable> Executor::get_output_variables() {
   return impl_->get_output_variables();
+}
+vector<Executor::GeneratorVariable> Executor::get_generator_variables() {
+  return impl_->get_generator_variables();
+}
+vector<Executor::ParameterVariable> Executor::get_parameter_variables() {
+  return impl_->get_parameter_variables();
 }
 shared_ptr<Network> Executor::get_network() { return impl_->get_network(); }
 void Executor::execute() { impl_->execute(); }

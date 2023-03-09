@@ -182,6 +182,60 @@ CgVariablePtr NetworkImpl::get_variable(const string &name) {
   return it->second;
 }
 
+Network::Function NetworkImpl::get_function(const ::Function &func) {
+  vector<string> inputs;
+  for (auto input_it = func.input().begin(); input_it != func.input().end();
+       input_it++) {
+    inputs.push_back(*input_it);
+  }
+  vector<string> outputs;
+  for (auto output_it = func.output().begin(); output_it != func.output().end();
+       output_it++) {
+    outputs.push_back(*output_it);
+  }
+  vector<Network::FunctionArg> arguments = get_function_args(func);
+  Network::Function f{func.name(), func.type(), std::move(inputs),
+                      std::move(outputs), std::move(arguments)};
+  return f;
+}
+
+vector<Network::Function> NetworkImpl::get_functions() {
+  if (require_build_) {
+    build();
+    require_build_ = false;
+  }
+
+  vector<Network::Function> ret;
+  for (auto it = network_proto_.function().begin();
+       it != network_proto_.function().end(); it++) {
+    ret.push_back(get_function(*it));
+  }
+  return ret;
+}
+
+vector<Network::Variable> NetworkImpl::get_variables() {
+  if (require_build_) {
+    build();
+    require_build_ = false;
+  }
+
+  vector<Network::Variable> ret;
+  for (auto it = network_proto_.variable().begin();
+       it != network_proto_.variable().end(); it++) {
+    auto cg_v = variables_.find(it->name());
+    assert(cg_v != variables_.end());
+    const ::Shape &proto_shape = it->shape();
+    Shape_t shape;
+    for (auto dim_it = proto_shape.dim().begin();
+         dim_it != proto_shape.dim().end(); dim_it++) {
+      shape.push_back(*dim_it);
+    }
+    Network::Variable v{it->name(), it->type(), std::move(shape), cg_v->second};
+    ret.push_back(v);
+  }
+  return ret;
+}
+
 string NetworkImpl::name() const { return network_proto_.name(); }
 
 void NetworkImpl::set_batch_size(int batch_size) {
@@ -257,6 +311,30 @@ vector<Executor::OutputVariable> ExecutorImpl::get_output_variables() {
   }
   NBLA_CHECK(ret.size() > 0, error_code::value,
              "Executor `%s`'s output is empty.", name().c_str());
+  return ret;
+}
+
+vector<Executor::GeneratorVariable> ExecutorImpl::get_generator_variables() {
+  vector<Executor::GeneratorVariable> ret;
+  for (auto it = executor_proto_.generator_variable().begin();
+       it != executor_proto_.generator_variable().end(); it++) {
+    Executor::GeneratorVariable v{it->variable_name(), it->type(),
+                                  it->multiplier(),
+                                  network_->get_variable(it->variable_name())};
+    ret.push_back(v);
+  }
+  return ret;
+}
+
+vector<Executor::ParameterVariable> ExecutorImpl::get_parameter_variables() {
+  vector<Executor::ParameterVariable> ret;
+  for (auto it = executor_proto_.parameter_variable().begin();
+       it != executor_proto_.parameter_variable().end(); it++) {
+    Executor::ParameterVariable v{it->variable_name(),
+                                  it->learning_rate_multiplier(),
+                                  network_->get_variable(it->variable_name())};
+    ret.push_back(v);
+  }
   return ret;
 }
 
