@@ -27,6 +27,7 @@
 /examples/cpp/mnist_training/tmp.*
 /examples/cpp/nbla_train/*.nnp
 /include/nbla/functions.hpp
+/include/nbla/api_levels.hpp
 /output/
 /python/src/nnabla/doc/
 /python/setup.cfg
@@ -79,6 +80,7 @@
 /python/test/test.prototxt
 /python/test/tmp.h5
 /python/test/tmp.protobuf
+/src/nbla/api_levels.cpp
 /src/nbla/function/*.cpp
 /src/nbla/functions.cpp
 /src/nbla/init.cpp
@@ -88,6 +90,7 @@
 /src/nbla_utils/nnabla.pb.cc
 /src/nbla_utils/nnabla.pb.h
 /src/nbla_utils/nnp_impl_create_function.cpp
+/src/nbla_utils/nnp_impl_get_function_args.cpp
 /third_party/*.zip
 /third_party/hdf5-1.10.1tar.bz2
 /third_party/libarchive-3.3.2tar.gz
@@ -99,6 +102,10 @@
 /third_party/flatc_mac
 /third_party/flatc_windows.exe
 /third_party/googletest-release-1.10.0/
+/third_party/hdf5-master/
+/third_party/libarchive-*/
+/third_party/protobuf-*/
+/third_party/zlib*/
 
 /build/
 /build-android/

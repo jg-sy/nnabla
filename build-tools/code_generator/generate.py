@@ -46,6 +46,8 @@ def generate_cpp_utils(function_info):
     function_list = utils.info_to_list(function_info)
     utils.generate_from_template(
         join(base, 'src/nbla_utils/nnp_impl_create_function.cpp.tmpl'), function_info=function_info, function_list=function_list)
+    utils.generate_from_template(
+        join(base, 'src/nbla_utils/nnp_impl_get_function_args.cpp.tmpl'), function_info=function_info, function_list=function_list)
 
 
 def generate_proto(function_info, solver_info):
@@ -284,7 +286,16 @@ def generate_backward_function_mapping(function_info):
     utils.generate_from_template(
         join(base, 'python/src/nnabla/backward_functions.py.tmpl'),
         function_info=function_info, function_list=function_list)
-    
+
+
+def generate_api_levels_cpp():
+    with open_api_level_yaml() as api_level_yaml:
+        utils.generate_from_template(
+            join(base, 'include/nbla/api_levels.hpp.tmpl'), api_level_info=api_level_yaml.api_level_d)
+        utils.generate_from_template(
+            join(base, 'src/nbla/api_levels.cpp.tmpl'), api_level_info=api_level_yaml.api_level_d)
+
+
 def generate():
     version = sys.argv[1]
     update_function_order_in_functsions_yaml()
@@ -307,6 +318,7 @@ def generate():
     generate_cpp_utils(function_info)
     generate_function_cpp_interface(function_info)
     generate_backward_function_mapping(function_info) 
+    generate_api_levels_cpp()
 
     # Generate function skeletons if new ones are added to functions.yaml and function_types.yaml.
     utils.generate_skeleton_function_impl(
