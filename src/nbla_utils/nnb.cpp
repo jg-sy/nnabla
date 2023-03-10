@@ -600,17 +600,17 @@ bool initialize_nnablart_info(const nbla::Context &ctx, Nnp &nnp,
                               int batch_size, NnablartInfo &info) {
   shared_ptr<Executor> executor = select_executor(nnp);
   if (!executor) {
-    printf("Failed to locate nnp executor\n");
+    std::cerr << "Failed to locate nnp executor" << std::endl;
     return false;
   }
 
   const string network_name = executor->network_name();
   shared_ptr<Network> network = search_network(nnp, network_name);
   if (!network) {
-    printf("Network for executor [%s] is not found.\n", network_name.c_str());
+    std::cerr << "Network for executor [" << network_name << "] is not found." << std::endl;
     return false;
   }
-  printf("Using network [%s].\n", network_name.c_str());
+  std::cout << "Using network [" << network_name << "]." << std::endl;
 
   info.batch_size_ = batch_size < 0 ? network->batch_size() : batch_size;
   info.network_name_ = executor->network_name();
@@ -713,8 +713,6 @@ bool initialize_nnablart_info(const nbla::Context &ctx, Nnp &nnp,
 void affine_transpose_weight(const std::vector<int> params,
                              const nbla::Context &ctx, NnablartInfo &info,
                              const Network::Function &func) {
-  using Transpose = nbla::Transpose<float>;
-
   TranposedWeightsSet &transposed = info.convert_context_["Affine"];
 
   for (int idx : params) {
@@ -1096,7 +1094,7 @@ NnbExporter::NnbExporter(const nbla::Context &ctx, Nnp &nnp,
                          int api_level /*= -1*/)
     : ctx_(ctx), info_(), api_level_(api_level), nnb_version_(nnb_version) {
   if (batch_size < 0) {
-    printf("NNB: Batch size adjust to 1.\n");
+    std::cout << "NNB: Batch size adjust to 1." << std::endl;
     batch_size = 1;
   }
   initialize_nnablart_info(ctx, nnp, batch_size, info_);
@@ -1452,8 +1450,7 @@ void NnbExporter::execute(const string &nnb_output_filename,
           // omit the parameter that is not supported
           // we only down - version by omitting the tail - appended parameters.
           if (argcode_pos >= argcode.size()) {
-            printf("%s.%llu is omitted for lower API Level:%d\n",
-                   f.type.c_str(), static_cast<uint64_t>(an), api_level_info_.get_current_level());
+            std::cout << f.type << "." << an << " is omitted for lower API Level: " << api_level_info_.get_current_level() << std::endl;
             continue;
           } else {
             // If argument type is changed, this function will be
