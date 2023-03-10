@@ -14,10 +14,10 @@
 
 #include <nbla/context.hpp>
 #include <nbla/function/transpose.hpp>
+#include <nbla/initializer.hpp>
 #include <nbla_utils/nnb.hpp>
 
 #include <map>
-#include <random>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -407,7 +407,7 @@ MemoryBlockStorage::MemoryBlockStorage()
     : storage_(make_shared<MemoryBlock::storage_type>()), memory_blocks_() {}
 
 MemoryBlockIndex MemoryBlockStorage::alloc(MemoryBlock &&memory_block) {
-  const const MemoryBlockIndex index = memory_blocks_.size();
+  const MemoryBlockIndex index = memory_blocks_.size();
   memory_block.move(index, storage_);
   memory_blocks_.emplace_back(std::move(memory_block));
   return index;
@@ -435,7 +435,7 @@ size_t MemoryBlockStorage::fwrite(std::FILE *f) const {
 // Helper functions
 // ----------------------------------------------------------------------
 
-template <typename T, T Lo, T Hi> inline const T &clamp_value(const T &value) {
+template <typename T, T Lo, T Hi> inline T clamp_value(const T &value) {
   return (value < Lo) ? Lo : ((Hi < value) ? Hi : value);
 }
 
@@ -581,27 +581,17 @@ shared_ptr<Network> search_network(Nnp &nnp, const std::string &name) {
 // sony/nnabla/python/src/nnabla/utils/converter/nnablart/utils.py(22)
 VariablePtr generate_value(const nbla::Context &ctx,
                            const Executor::GeneratorVariable &x,
-                           const Shape_t &shape,
-                           const std::random_device::result_type seed = -1) {
-  static std::random_device seed_gen;
-  static std::uniform_real_distribution<> uniform(0.0, 1.0);
-  static std::normal_distribution<> normal(0.0, 1.0);
-
-  std::default_random_engine engine(seed == -1 ? seed_gen() : seed);
-  VariablePtr v = make_shared<Variable>(shape);
-  float_t *generator = v->cast_data_and_get_pointer<float_t>(ctx);
+                           const Shape_t &shape) {
+  std::unique_ptr<nbla::Initializer> initializer;
   if (x.type == "Normal") {
-    for (int i = 0; i < v->size(); i++)
-      generator[i] = x.multiplier * normal(engine);
+    initializer = std::make_unique<nbla::NormalInitializer>(0.f, x.multiplier);
   } else if (x.type == "Uniform") {
-    for (int i = 0; i < v->size(); i++) {
-      generator[i] = x.multiplier * uniform(engine);
-    }
+    initializer = std::make_unique<nbla::UniformInitializer>((-1.f * x.multiplier), x.multiplier);
   } else if (x.type == "Constant") {
-    for (int i = 0; i < v->size(); i++) {
-      generator[i] = x.multiplier;
-    }
+    initializer = std::make_unique<nbla::ConstantInitializer>(x.multiplier);
   }
+  VariablePtr v = Variable::create(shape);
+  initializer->initialize(v->data());
   return v;
 }
 
@@ -691,7 +681,8 @@ bool initialize_nnablart_info(const nbla::Context &ctx, Nnp &nnp,
   {
     BufferIndex buffer_index = 0;
     info.variable_sizes_.reserve(network_variables.size());
-    for (BufferIndex n = 0; n < network_variables.size(); ++n) {
+    const BufferIndex num_var = static_cast<BufferIndex>(network_variables.size());
+    for (BufferIndex n = 0; n < num_var; ++n) {
       const Network::Variable &v = network_variables[n];
       const SizeType size = calc_shape_size(v.shape, info.batch_size_);
       info.variable_sizes_.push_back(size);
@@ -699,12 +690,12 @@ bool initialize_nnablart_info(const nbla::Context &ctx, Nnp &nnp,
         vector<VariableId> buffer_indices = {n};
         info.variable_buffer_index_.insert({buffer_index, buffer_indices});
         for (const VariableId &vid : buffer_indices) {
-          info.buffer_ids_.insert_or_assign(vid, buffer_index);
+          info.buffer_ids_[vid] = buffer_index;
         }
 
         auto it = info.variable_buffer_size_.find(buffer_index);
         if (it == info.variable_buffer_size_.end() || size > it->second) {
-          info.variable_buffer_size_.insert_or_assign(buffer_index, size);
+          info.variable_buffer_size_[buffer_index] = size;
         }
 
         buffer_index++;
@@ -714,6 +705,8 @@ bool initialize_nnablart_info(const nbla::Context &ctx, Nnp &nnp,
   info.parameters_ = parameters;
   info.variables_ = variables;
   info.network_ = network;
+
+  return true;
 }
 
 // sony/nnabla/python/src/nnabla/utils/converter/nnablart/utils.py(160)
@@ -898,7 +891,8 @@ compute_actual_buf_sizes(const NnablartInfo &info,
     // tmp_size_array is size values when only focusing on a single Function
     vector<SizeType> tmp_size_array(actual_buf_num, -1);
     int crsr = 0;
-    for (BufferIndex buf_idx = 0; buf_idx < buf_var_lives.size(); ++buf_idx) {
+    const BufferIndex num_lives = static_cast<BufferIndex>(buf_var_lives.size());
+    for (BufferIndex buf_idx = 0; buf_idx < num_lives; ++buf_idx) {
       const LifeSpan &buf_var_life = buf_var_lives[buf_idx];
       // Only focus on buffers used in this func
       if (buf_var_life.needed_at(func_idx)) {
@@ -1125,9 +1119,9 @@ void NnbExporter::execute(const string &nnb_output_filename,
   MemoryBlockStorage memory_data;
 
   vector<Network::Variable> network_variables = info_.network_->get_variables();
-  const int num_network_variables = network_variables.size();
-  const int num_input_variables = info_.input_variables_.size();
-  const int num_output_variables = info_.output_variables_.size();
+  const unsigned int num_network_variables = network_variables.size();
+  const unsigned int num_input_variables = info_.input_variables_.size();
+  const unsigned int num_output_variables = info_.output_variables_.size();
 
   //////////////////////////////////////////////////////////////////////////
   // Version
@@ -1205,7 +1199,7 @@ void NnbExporter::execute(const string &nnb_output_filename,
       // set var.shape and store into NNB
       {
         Shape_t shape = v.shape;
-        for (int j = 0; j < shape.size(); ++j) {
+        for (unsigned int j = 0; j < shape.size(); ++j) {
           if (shape[j] < 0) {
             shape[j] = info_.batch_size_;
           }
@@ -1458,8 +1452,8 @@ void NnbExporter::execute(const string &nnb_output_filename,
           // omit the parameter that is not supported
           // we only down - version by omitting the tail - appended parameters.
           if (argcode_pos >= argcode.size()) {
-            printf("%s.%lld is omitted for lower API Level:%d\n",
-                   f.type.c_str(), an, api_level_info_.get_current_level());
+            printf("%s.%llu is omitted for lower API Level:%d\n",
+                   f.type.c_str(), static_cast<uint64_t>(an), api_level_info_.get_current_level());
             continue;
           } else {
             // If argument type is changed, this function will be
