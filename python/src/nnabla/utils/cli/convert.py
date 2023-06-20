@@ -194,7 +194,7 @@ def add_convert_command(subparsers):
                                 argument \'--export-format\' will have to be set!!!'.format(export_formats_string))
     subparser.add_argument('-f', '--force', action='store_true',
                            help='[export] overwrite output file.')
-    subparser.add_argument('-b', '--batch-size', type=int, default=-1,
+    subparser.add_argument('-b', '--batch-size', type=int, default=1,
                            help='[export] overwrite batch size.')
     subparser.add_argument('-S', '--split', type=str, default=None,
                            help='[export] This option need to set  "-E" option.' +
@@ -214,6 +214,9 @@ def add_convert_command(subparsers):
                            help='[export][TFLite] export to INT8 quantized tflite model.')
     subparser.add_argument('--dataset', type=str, default=None,
                            help='[export][TFLite] Specify the path of represent dataset which will be passed to INT8 quantized tflite converter.')
+    subparser.add_argument('--ir_version', type=int, default=-1,
+                           help='[export] Set ONNX IR version to convert to, \
+                           default is the latest supported IR version corresponding to the current ONNX version.')
 
     # For config function list
     subparser.add_argument('-c', '--config', type=str, default=None,

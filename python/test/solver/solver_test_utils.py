@@ -57,6 +57,8 @@ class RefSolver(object):
         if self.weight_decay_is_fused():
             self.weight_decay_rate = decay_rate
             return
+        if decay_rate == 0:
+            return
         for key, grad in iteritems(grads):
             param = self.params[key]
             grad[...] = grad + decay_rate * param
@@ -76,9 +78,13 @@ class MixinWeightDecayFused(object):
 def solver_tester(rng, solver, ref_solver, solver_args=[], solver_kwargs={},
                   num_itr=5, decay=1e-4, clip_norm=0.5, atol=1e-6, rtol=1e-5,
                   ctx=None, solver_name=None,
-                  weight_decay_interval=2):
+                  weight_decay_interval=2,
+                  hook_solver_update=None):
     if ctx is None:
         ctx = nn.Context()
+
+    if hook_solver_update is None:
+        def hook_solver_update(itr, s, r): return None
 
     # Create params
     p1 = nn.Variable([2, 3, 4])
@@ -125,7 +131,7 @@ def solver_tester(rng, solver, ref_solver, solver_args=[], solver_kwargs={},
     for p, ref_p in zip(params.values(), grad_copy.values()):
         assert np.allclose(ref_p, p.g, atol=atol, rtol=rtol)
 
-    # Check solver udpate.
+    # Check solver update.
     for i in range(num_itr):
         grads = OrderedDict([(k, np.asarray(rng.randn(*p.shape), dtype=np.float32))
                              for k, p in iteritems(params)])
@@ -133,16 +139,16 @@ def solver_tester(rng, solver, ref_solver, solver_args=[], solver_kwargs={},
             params[k].g = g
         decay_value = decay * \
             ((i % weight_decay_interval) / weight_decay_interval)  # Python3
-        if decay_value > 0:
-            s.weight_decay(decay_value)
-            ref_s.weight_decay(grads, decay_value)
+        s.weight_decay(decay_value)
+        ref_s.weight_decay(grads, decay_value)
         s.update()
         ref_s.update(grads)
         # update check
-        for p, ref_p in zip(params.values(), ref_s.params.values()):
+        hook_solver_update(i, s, ref_s)
+        for (k, p), (ref_k, ref_p) in zip(params.items(), ref_s.params.items()):
             assert_allclose(ref_p, p.d, atol=atol, rtol=rtol,
-                            err_msg=f'i={i}, decay_value={decay_value}')
-        # iteration state incrementaion check
+                            err_msg=f'i={i}, p="{k}" decay_value={decay_value}')
+        # iteration state incrementation check
         for state in s.get_states().values():
             assert state.t == (i + 1)
 

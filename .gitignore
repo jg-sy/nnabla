@@ -7,6 +7,7 @@
 *.pyc
 
 /build-tools/msvc/cmake_cpp_utils.bat
+/cache_npy
 /doc/?/
 /doc/locale/ja/LC_MESSAGES/
 /docker/development/Dockerfile.build.py*
@@ -91,8 +92,10 @@
 /src/nbla_utils/nnabla.pb.h
 /src/nbla_utils/nnp_impl_create_function.cpp
 /src/nbla_utils/nnp_impl_get_function_args.cpp
+/test_loop_controls
 /third_party/*.zip
 /third_party/hdf5-1.10.1tar.bz2
+/third_party/hdf5-master/
 /third_party/libarchive-3.3.2tar.gz
 /third_party/protobuf-3.1.0tar.gz
 /third_party/zlib-1.2.11tar.gz
@@ -106,6 +109,7 @@
 /third_party/libarchive-*/
 /third_party/protobuf-*/
 /third_party/zlib*/
+/tmp.nnp
 
 /build/
 /build-android/
